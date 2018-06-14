@@ -33,9 +33,11 @@ class MultiModelSaveSearch(MultiModelSearch):
                     If the data should be preprocessed.
     verbose:        integer, optional
                     High number give more output.
+    save:           None means no saving
+                    String used as prefix for result directories
     """
     def __init__(self, data_handler, parameter, scoring=None, n_jobs=1, cv=5,
-                 preprocessing=None, save=None, verbose=5, random_state=None):
+                 preprocessing=None, verbose=5, random_state=None, save=None):
         self.data_handler = data_handler
         self.scoring = scoring
         self._process_parameter(parameter)
@@ -43,6 +45,9 @@ class MultiModelSaveSearch(MultiModelSearch):
         self.cv = list(self.cv)
         self.results = None
         self.preprocessing = preprocessing
+        self.fitted = False
+        self.evaluated = False
+        self.model_build = False
         self.searches = [SaveGridSearchCV(para[0], para[1], save=save, 
                                    scoring=scoring, n_jobs=n_jobs, cv=self.cv, 
                                    verbose=verbose, refit=False)

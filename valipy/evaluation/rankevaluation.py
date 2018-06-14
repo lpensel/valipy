@@ -10,7 +10,7 @@ class RankEvaluation(BasicEvaluation):
     approach.
     """
 
-    def evaluate(self, results, scoring, no_splits, scoring_weight=None):
+    def eval(self, results, scoring, no_splits, scoring_weight=None):
         """
         TODO
         """
@@ -50,4 +50,4 @@ class RankEvaluation(BasicEvaluation):
 
         return_value.sort(key=lambda para: para[1], reverse=True)
 
-        return return_value
+        return return_value, param_scores.index(max(param_scores))

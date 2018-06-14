@@ -11,7 +11,11 @@ class BasicEvaluation(six.with_metaclass(ABCMeta)):
     """
 
     @abstractmethod
-    def evaluate(self, results, scoring, cv, scoring_weight=None):
+    def eval(self, results, scoring, no_splits, scoring_weight=None):
         """
         TODO
         """
+
+    def evaluate(self, results, scoring, no_splits, scoring_weight=None):
+    	res,_ = self.eval(results, scoring, no_splits, scoring_weight)
+    	return res

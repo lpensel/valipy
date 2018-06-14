@@ -4,12 +4,16 @@ Contains the class for multi model SK grid search.
 
 import numpy as np
 
+import copy
+
 
 from sklearn.model_selection import StratifiedKFold, GridSearchCV
 from sklearn.base import BaseEstimator
+from sklearn.model_selection._split import check_cv
 
 
 from ..model.basicmodel import BasicModel
+from ..evaluation.rankevaluation import RankEvaluation
 
 
 
@@ -45,6 +49,9 @@ class MultiModelSearch(object):
         self.cv = list(self.cv)
         self.results = None
         self.preprocessing = preprocessing
+        self.fitted = False
+        self.evaluated = False
+        self.model_build = False
         self.searches = [GridSearchCV(para[0], para[1], scoring=scoring, 
                                       n_jobs=n_jobs, cv=self.cv, 
                                       verbose=verbose, refit=False)
@@ -61,21 +68,26 @@ class MultiModelSearch(object):
             X,y,_ = self.data_handler.get_train()
             skf = StratifiedKFold(n_splits=cv, random_state=random_state)
             self.cv = skf.split(X,y)
+            self.no_splits = cv
         else:
             self.cv = cv
+            self.no_splits = None
 
     def _update_result(self,results,estimator):
         if isinstance(estimator, BasicModel):
             name = estimator.get_name()
         else:
             name = estimator.__class__.__name__
-
+        results["Estimator"]={name:estimator}
         for i in range(len(results["params"])):
             results["params"][i]["Estimator"] = name
         if self.results is None:
             self.results = results
         else:
             for key in results.keys():
+                if key == "Estimator":
+                    self.results[key] = {**self.results[key], **results[key]}
+                    continue
                 if "param_" not in key:
                     self.results[key] = np.concatenate((self.results[key],
                                                         results[key]))
@@ -92,8 +104,48 @@ class MultiModelSearch(object):
             search = self.searches[i]
             search.fit(X,y)
             self._update_result(search.cv_results_, self.parameter[i][0])
+        self.fitted = True
 
-        
+    def evaluate(self,scoring_weight=None,evaluater=None):
+        if not self.fitted:
+            print("[WARNING] Needs to be fitted first")
+            print("[INFO] Start fitting")
+            self.fit()
+        if self.evaluated:
+            return self.ranking
+        if evaluater is None:
+            evaluater = RankEvaluation()
+        self.ranking, best_idx = evaluater.eval(self.results, self.scoring, 
+                                               no_splits=self.no_splits, 
+                                               scoring_weight=scoring_weight)
+        top_par = copy.deepcopy(self.results["params"][best_idx])
+        top_est = self.results["Estimator"][top_par.pop("Estimator")]
+        self.top_model = (top_est,top_par)
+        self.evaluated = True
+        return self.ranking
+
+    def get_model(self):
+        if not self.evaluated:
+            _ = self.evaluate()
+
+        if not self.model_build:
+            X, y, z = self.data_handler.get_train()
+            if self.preprocessing is not None:
+                self.preprocessing.fit(X, y, z)
+                X, y, z = self.preprocessing.transform(X, y, z)
+            estimator = self.top_model[0]
+            estimator.set_params(**self.top_model[1])
+            estimator.fit(X,y)
+            self.model = estimator
+            self.model_build = True
+
+        return self.model
+
+    def preprocess(self, X, y, z):
+        if not self.model_build:
+            model = self.get_model()
+        X, y, z = self.preprocessing.transform(X, y, z)
+        return X, y, z
 
 
 
