@@ -142,8 +142,9 @@ class MultiModelSearch(object):
         return self.model
 
     def preprocess(self, X, y, z):
-        if not self.model_build:
-            model = self.get_model()
+        if self.preprocessing is not None:
+            if not self.model_build:
+                model = self.get_model()
         X, y, z = self.preprocessing.transform(X, y, z)
         return X, y, z
 

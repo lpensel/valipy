@@ -51,28 +51,37 @@ preprocessing = vp.preprocessing.SKPreprocessing(StandardScaler())
 pre_dir = "temp"
 
 #do grid search over multiple algorithms
-search = vp.search.MultiModelSaveSearch(data_handler, parameter, scoring=scoring,
-                 cv=2, preprocessing=preprocessing, save=pre_dir)
+search = vp.search.MultiModelSaveSearch(data_handler,parameter,scoring=scoring,
+                 cv=2,preprocessing=preprocessing,save=pre_dir)
 search.fit()
-ranking = search.evaluate(scoring_weight=[2.0,1.0,2.0])
+
+#Internal method to evaluate the results using default ranked evaluation
+ranking = search.evaluate(scoring_weight=[2.0,1.0,2.0],evaluater=None)
 
 #print sorted results
 for a,b in ranking:
     print("Parameter: {}\nScore: {}".format(a,b))
 
-
+#Get the best model found by the search and trained on the whole test set
 estimator = search.get_model()
+
+#Load Test set for evaluation
 X, y, z = data_handler.get_test()
+
+#Use the preprocessing fitted on the training data
 X, y, z = search.preprocess(X,y,z)
 
+#Testing the model
 print("Predicting Test set")
 y_pred = estimator.predict(X)
 y_prob = estimator.predict_proba(X)
 y_prob = y_prob[:,1]
 
+#print the evaluation
 for i in range(len(y_pred)):
 	print("{}.: true = {}, pred = {}, proba = {}".format(i,y[i],y_pred[i],
 														 y_prob[i]))
 
 #Delete "temp" directories(for UNIX)
+#Do this only if you are sure you do not need this particular search again
 os.system("rm -r {}_*".format(pre_dir))
